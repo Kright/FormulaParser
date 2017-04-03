@@ -13,7 +13,7 @@ object FormulaParser extends RegexParsers with PackratParsers {
 	def number: Parser[Number] = "-" ~> number ^^ (n => Number(-n.value)) |
 		("[0-9]+\\.[0-9]*".r | "[0-9]+".r) ^^ (s => Number(s.toDouble))
 
-	def funcCall: Parser[FuncCall] = id ~ ("(" ~> expression <~ ")") ^^ (pair => FuncCall(pair._1, pair._2))
+	def funcCall: Parser[FuncCall] = id ~ ("(" ~> expression <~ ")") ^^ {case id ~ exp => FuncCall(id, exp)}
 
 	def value: Parser[Expression] = number | funcCall | id | ("(" ~> expression <~ ")")
 
@@ -21,8 +21,9 @@ object FormulaParser extends RegexParsers with PackratParsers {
 
 	lazy val expression: PackratParser[Expression] = expression ~ ("+" | "-") ~ term ^^ binOperation | term
 
-	private def binOperation(p: ~[~[Expression, String], Expression]) =
-		BinOperation(p._1._1, BinOperator(p._1._2), p._2)
+	private def binOperation(p: Expression ~ String ~ Expression) = p match {
+		case e1 ~ op ~ e2 => BinOperation(e1, BinOperator(op), e2)
+	}
 
 	def apply(code: String): Either[ParserError, Expression] =
 		parse(expression, new PackratReader(new CharSequenceReader(code))) match {
